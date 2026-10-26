@@ -7,8 +7,9 @@ async function bootstrap() {
 
   // Permite conexão do Front-End
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: true || process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   // Prefixo global para organizar todas as rotas REST em /api/...
