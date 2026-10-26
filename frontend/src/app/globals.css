@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Habilita o botão de Dark Mode manual pela classe .dark no HTML (Tailwind v4) */
+@custom-variant dark (&:where(.dark, .dark *));

@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  AUCTIONEER
+  BIDDER
+}
+
+enum LotStatus {
+  SCHEDULED
+  ACTIVE
+  FINISHED
+  UNSOLD
+  CANCELLED
+}
+
+model User {
+  id               String   @id @default(uuid())
+  name             String
+  publicAlias      String
+  email            String   @unique
+  passwordHash     String
+  role             Role
+  
+  totalBalance     Int      @default(0)
+  committedBalance Int      @default(0)
+
+  lotsCreated      Lot[]    @relation("AuctioneerLots")
+  lotsWon          Lot[]    @relation("WinnerLots")
+  bids             Bid[]
+  createdAt        DateTime @default(now())
+}
+
+model Lot {
+  id                String    @id @default(uuid())
+  auctioneerId      String
+  auctioneer        User      @relation("AuctioneerLots", fields: [auctioneerId], references: [id])
+
+  externalItemId    String
+  title             String
+  description       String?
+  imageUrl          String
+  attributesJson    Json
+
+  startingPrice     Int
+  minIncrement      Int
+  currentPrice      Int       @default(0)
+  
+  startsAt          DateTime
+  endsAt            DateTime
+  status            LotStatus @default(SCHEDULED)
+
+  winnerId          String?
+  winner            User?     @relation("WinnerLots", fields: [winnerId], references: [id])
+
+  bids              Bid[]
+  receipt           Receipt?
+  createdAt         DateTime  @default(now())
+
+  @@index([status, startsAt, endsAt])
+}
+
+model Bid {
+  id             String   @id @default(uuid())
+  lotId          String
+  lot            Lot      @relation(fields: [lotId], references: [id])
+  bidderId       String
+  bidder         User     @relation(fields: [bidderId], references: [id])
+  
+  sequenceNumber Int
+  amount         Int
+  createdAt      DateTime @default(now())
+
+  previousHash   String
+  bidHash        String
+
+  @@unique([lotId, sequenceNumber])
+  @@index([lotId, sequenceNumber])
+}
+
+model Receipt {
+  id               String   @id @default(uuid())
+  lotId            String   @unique
+  lot              Lot      @relation(fields: [lotId], references: [id])
+  finalAmount      Int
+  issuedAt         DateTime @default(now())
+  verificationHash String
+}
