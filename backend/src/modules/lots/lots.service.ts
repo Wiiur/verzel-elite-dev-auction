@@ -267,15 +267,23 @@ export class LotsService {
       });
     }
 
-    const blockedArticLots = await this.prisma.lot.findMany({
-      where: { imageUrl: { startsWith: 'https://www.artic.edu/iiif/' } },
-      select: { id: true, imageUrl: true },
+    // Se algum lote criado manualmente ficou com link quebrado do artic.edu, aplica imagem válida do pool
+    const brokenLots = await this.prisma.lot.findMany({
+      where: {
+        OR: [
+          { imageUrl: { contains: 'artic.edu/iiif' } },
+          { imageUrl: { contains: 'wsrv.nl' } },
+        ],
+      },
+      select: { id: true },
     });
 
-    for (const lot of blockedArticLots) {
+    for (let i = 0; i < brokenLots.length; i++) {
+      const fallbackArt =
+        CURATED_ARTWORKS_POOL[i % CURATED_ARTWORKS_POOL.length];
       await this.prisma.lot.update({
-        where: { id: lot.id },
-        data: { imageUrl: this.toSafeImageUrl(lot.imageUrl) },
+        where: { id: brokenLots[i].id },
+        data: { imageUrl: fallbackArt.imageUrl },
       });
     }
   }
