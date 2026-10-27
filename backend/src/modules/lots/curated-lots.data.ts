@@ -147,7 +147,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'The Kiss (Der Kuss) — Gustav Klimt',
     description: 'Composição simbolista da Fase Dourada vienense com aplicação de folhas de ouro.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/4/4d/Klimt_-_Der_Kuss.jpeghttps://upload.wikimedia.org/wikipedia/commons/4/4d/Klimt_-_Der_Kuss.jpeg',
+      'https://upload.wikimedia.org/wikipedia/commons/b/b9/Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg',
     attributesJson: {
       artist: 'Gustav Klimt',
       dateDisplay: '1907–1908',
