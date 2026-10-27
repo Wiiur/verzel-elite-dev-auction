@@ -17,6 +17,7 @@ import * as crypto from 'crypto';
 export class LotsService {
   private readonly logger = new Logger(LotsService.name);
   private isSyncing = false;
+  private hasSanitizedImages = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,10 +25,15 @@ export class LotsService {
     private readonly hashChain: HashChainService,
   ) {}
 
+  private toSafeImageUrl(url: string): string {
+    if (url.startsWith('https://www.artic.edu/iiif/')) {
+      return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=800&output=jpg`;
+    }
+    return url;
+  }
+
   async getShowcaseLots(search?: string, statusFilter?: LotStatus) {
     await this.syncLotLifecycle();
-
-    
 
     return this.prisma.lot.findMany({
       where: {
@@ -47,7 +53,10 @@ export class LotsService {
         winner: { select: { id: true, publicAlias: true } },
         _count: { select: { bids: true } },
       },
-      orderBy: { endsAt: 'asc' },
+      orderBy:
+        statusFilter === LotStatus.SCHEDULED
+          ? { startsAt: 'asc' }
+          : { endsAt: 'asc' },
     });
   }
 
@@ -122,7 +131,9 @@ export class LotsService {
       endsAt: string;
     },
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id: auctioneerId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: auctioneerId },
+    });
     if (!user || user.role !== Role.AUCTIONEER) {
       throw new ForbiddenException('Apenas leiloeiros podem criar lotes.');
     }
@@ -132,7 +143,9 @@ export class LotsService {
     const now = new Date();
 
     if (endsAtDate <= startsAtDate) {
-      throw new BadRequestException('A data de término deve ser posterior à data de início.');
+      throw new BadRequestException(
+        'A data de término deve ser posterior à data de início.',
+      );
     }
 
     const initialStatus =
@@ -144,7 +157,7 @@ export class LotsService {
         externalItemId: dto.externalItemId,
         title: dto.title,
         description: dto.description,
-        imageUrl: dto.imageUrl,
+        imageUrl: this.toSafeImageUrl(dto.imageUrl),
         attributesJson: dto.attributesJson,
         startingPrice: dto.startingPriceInCents,
         minIncrement: dto.minIncrementInCents,
@@ -172,7 +185,9 @@ export class LotsService {
         lot.status === LotStatus.UNSOLD ||
         lot.status === LotStatus.CANCELLED
       ) {
-        throw new BadRequestException('Este lote já foi encerrado ou cancelado.');
+        throw new BadRequestException(
+          'Este lote já foi encerrado ou cancelado.',
+        );
       }
 
       if (lot.winnerId && lot.currentPrice > 0) {
@@ -194,7 +209,8 @@ export class LotsService {
 
       this.biddingGateway.broadcastLotStatusChange(lotId, {
         status: LotStatus.CANCELLED,
-        message: 'Lote cancelado pelo leiloeiro. Os saldos comprometidos foram estornados.',
+        message:
+          'Lote cancelado pelo leiloeiro. Os saldos comprometidos foram estornados.',
       });
 
       return cancelledLot;
@@ -209,46 +225,99 @@ export class LotsService {
     try {
       const now = new Date();
 
-      for (const art of CURATED_ARTWORKS_POOL) {
-        await this.prisma.lot.updateMany({
-          where: {
-            externalItemId: art.externalItemId,
-            imageUrl: { not: art.imageUrl },
-          },
-          data: {
-            imageUrl: art.imageUrl,
-          },
-        });
+      // Executa apenas 1 vez ao iniciar o servidor para corrigir imagens antigas salvas no banco
+      if (!this.hasSanitizedImages) {
+        await this.sanitizeDatabaseImagesOnce();
+        this.hasSanitizedImages = true;
       }
 
-      // 1. Ativa lotes agendados que atingiram o horário de início
-      await this.prisma.lot.updateMany({
-        where: {
-          status: LotStatus.SCHEDULED,
-          startsAt: { lte: now },
-          endsAt: { gt: now },
-        },
-        data: { status: LotStatus.ACTIVE },
-      });
-
-      // 2. Liquida e encerra lotes ativos cujo tempo acabou
+      // 1. Liquida e encerra lotes cujo horário de término (endsAt) já passou
       const expiredLots = await this.prisma.lot.findMany({
         where: {
           status: { in: [LotStatus.ACTIVE, LotStatus.SCHEDULED] },
           endsAt: { lte: now },
         },
+        select: { id: true },
       });
 
-      for (const expiredLot of expiredLots) {
-        await this.settleExpiredLot(expiredLot.id);
+      for (const expired of expiredLots) {
+        await this.settleExpiredLot(expired.id);
       }
 
-      // 3. Garante sempre pelo menos 3 lotes AO VIVO sem repetir obras recentes
-      await this.ensureMinimumActiveLots(3);
+      // 2. Promove lotes AGENDADOS cujo startsAt chegou para AO VIVO (ACTIVE)
+      await this.activateDueScheduledLots(now);
+
+      // 3. Mantém 3 lotes AO VIVO e 3 lotes AGENDADOS sincronizados com o término dos ativos
+      await this.ensureAuctionPipeline(3, 3);
     } catch (error) {
       this.logger.error('Erro ao sincronizar ciclo de vida dos lotes:', error);
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  private async sanitizeDatabaseImagesOnce() {
+    for (const art of CURATED_ARTWORKS_POOL) {
+      await this.prisma.lot.updateMany({
+        where: {
+          externalItemId: art.externalItemId,
+          imageUrl: { not: art.imageUrl },
+        },
+        data: { imageUrl: art.imageUrl },
+      });
+    }
+
+    const blockedArticLots = await this.prisma.lot.findMany({
+      where: { imageUrl: { startsWith: 'https://www.artic.edu/iiif/' } },
+      select: { id: true, imageUrl: true },
+    });
+
+    for (const lot of blockedArticLots) {
+      await this.prisma.lot.update({
+        where: { id: lot.id },
+        data: { imageUrl: this.toSafeImageUrl(lot.imageUrl) },
+      });
+    }
+  }
+
+  private async activateDueScheduledLots(now: Date) {
+    const dueLots = await this.prisma.lot.findMany({
+      where: {
+        status: LotStatus.SCHEDULED,
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+      },
+      include: { _count: { select: { bids: true } } },
+    });
+
+    if (dueLots.length === 0) return;
+
+    const bidders = await this.prisma.user.findMany({
+      where: { role: Role.BIDDER },
+    });
+
+    for (const lot of dueLots) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.lot.update({
+          where: { id: lot.id },
+          data: { status: LotStatus.ACTIVE },
+        });
+
+        if (lot._count.bids === 0 && bidders.length >= 2) {
+          await this.createInitialBids(
+            tx,
+            lot.id,
+            lot.startingPrice,
+            lot.minIncrement,
+            bidders,
+            now,
+          );
+        }
+
+        this.biddingGateway.broadcastLotStatusChange(lot.id, {
+          status: LotStatus.ACTIVE,
+        });
+      });
     }
   }
 
@@ -303,7 +372,9 @@ export class LotsService {
 
       const verificationHash = crypto
         .createHash('sha256')
-        .update(`RECEIPT:${lot.id}:${lot.winnerId}:${winningBid.amount}:${winningBid.bidHash}`)
+        .update(
+          `RECEIPT:${lot.id}:${lot.winnerId}:${winningBid.amount}:${winningBid.bidHash}`,
+        )
         .digest('hex');
 
       const receipt = await tx.receipt.create({
@@ -328,84 +399,104 @@ export class LotsService {
     });
   }
 
-  private async ensureMinimumActiveLots(minActiveCount: number) {
-    const activeLots = await this.prisma.lot.findMany({
-      where: { status: LotStatus.ACTIVE },
-      select: { externalItemId: true },
-    });
+  private async ensureAuctionPipeline(
+    minActiveCount: number,
+    targetScheduledCount: number,
+  ) {
+    const [activeLots, scheduledLots] = await Promise.all([
+      this.prisma.lot.findMany({
+        where: { status: LotStatus.ACTIVE },
+        orderBy: { endsAt: 'asc' },
+        select: { externalItemId: true, endsAt: true },
+      }),
+      this.prisma.lot.findMany({
+        where: { status: LotStatus.SCHEDULED },
+        orderBy: { startsAt: 'asc' },
+        select: { externalItemId: true, startsAt: true },
+      }),
+    ]);
 
-    if (activeLots.length >= minActiveCount) return;
+    const missingActive = Math.max(0, minActiveCount - activeLots.length);
+    const missingScheduled = Math.max(
+      0,
+      targetScheduledCount - scheduledLots.length,
+    );
+    const totalNeeded = missingActive + missingScheduled;
 
-    const needed = minActiveCount - activeLots.length;
+    if (totalNeeded === 0) return;
 
-    // Busca os últimos 15 lotes criados (mesmo encerrados ou agendados) para evitar repetição
     const recentLots = await this.prisma.lot.findMany({
       orderBy: { createdAt: 'desc' },
       take: 15,
       select: { externalItemId: true },
     });
 
-    const excludedExternalIds = new Set([
+    const excludedIds = new Set([
       ...activeLots.map((l) => l.externalItemId),
+      ...scheduledLots.map((l) => l.externalItemId),
       ...recentLots.map((l) => l.externalItemId),
     ]);
 
-    let candidatePool = CURATED_ARTWORKS_POOL.filter(
-      (art) => !excludedExternalIds.has(art.externalItemId),
+    let candidates = CURATED_ARTWORKS_POOL.filter(
+      (art) => !excludedIds.has(art.externalItemId),
     );
 
-    // Fallback de segurança caso o pool filtrado tenha menos itens que o necessário
-    if (candidatePool.length < needed) {
-      const activeOnlyIds = new Set(activeLots.map((l) => l.externalItemId));
-      candidatePool = CURATED_ARTWORKS_POOL.filter(
-        (art) => !activeOnlyIds.has(art.externalItemId),
+    if (candidates.length < totalNeeded) {
+      const currentBusyIds = new Set([
+        ...activeLots.map((l) => l.externalItemId),
+        ...scheduledLots.map((l) => l.externalItemId),
+      ]);
+      candidates = CURATED_ARTWORKS_POOL.filter(
+        (art) => !currentBusyIds.has(art.externalItemId),
       );
     }
 
-    // Embaralhamento Fisher-Yates com entropia criptográfica
-    const shuffled = [...candidatePool];
+    const shuffled = [...candidates];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = crypto.randomInt(0, i + 1);
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    const auctioneers = await this.prisma.user.findMany({
-      where: { role: Role.AUCTIONEER },
-    });
+    const [auctioneers, bidders] = await Promise.all([
+      this.prisma.user.findMany({ where: { role: Role.AUCTIONEER } }),
+      this.prisma.user.findMany({ where: { role: Role.BIDDER } }),
+    ]);
+
     if (auctioneers.length === 0) return;
 
-    const bidders = await this.prisma.user.findMany({
-      where: { role: Role.BIDDER },
-    });
-
-    // Janelas de duração escalonadas para que os lotes nunca encerrem todos juntos
-    const durationBrackets = [
-      { min: 12, max: 22 },
-      { min: 28, max: 45 },
-      { min: 50, max: 75 },
+    const now = new Date();
+    const prices = [75000, 90000, 110000, 130000, 150000, 180000, 210000];
+    const increments = [15000, 20000, 25000, 30000, 40000];
+    const activeBrackets = [
+      { min: 10, max: 18 },
+      { min: 22, max: 32 },
+      { min: 36, max: 50 },
     ];
 
-    for (let i = 0; i < Math.min(needed, shuffled.length); i++) {
-      const artwork = shuffled[i];
+    let cursor = 0;
+    const activeEndTimes: Date[] = activeLots.map((l) => l.endsAt);
+
+    // 1. Só cria direto em ACTIVE se houver menos de 3 ativos (partida inicial)
+    for (
+      let i = 0;
+      i < missingActive && cursor < shuffled.length;
+      i++, cursor++
+    ) {
+      const artwork = shuffled[cursor];
       const auctioneer = auctioneers[crypto.randomInt(0, auctioneers.length)];
+      const startingPrice = prices[crypto.randomInt(0, prices.length)];
+      const minIncrement = increments[crypto.randomInt(0, increments.length)];
+      const bracket = activeBrackets[i % activeBrackets.length];
+      const durationMin = crypto.randomInt(bracket.min, bracket.max + 1);
 
-      const startingPriceOptions = [75000, 90000, 110000, 130000, 150000, 180000, 210000];
-      const minIncrementOptions = [15000, 20000, 25000, 30000, 40000];
-
-      const startingPrice =
-        startingPriceOptions[crypto.randomInt(0, startingPriceOptions.length)];
-      const minIncrement =
-        minIncrementOptions[crypto.randomInt(0, minIncrementOptions.length)];
-
-      const bracket = durationBrackets[i % durationBrackets.length];
-      const durationMinutes = crypto.randomInt(bracket.min, bracket.max + 1);
-
-      const now = new Date();
-      const startsAt = new Date(now.getTime() - crypto.randomInt(3, 10) * 60 * 1000);
-      const endsAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+      const startsAt = new Date(
+        now.getTime() - crypto.randomInt(3, 8) * 60 * 1000,
+      );
+      const endsAt = new Date(now.getTime() + durationMin * 60 * 1000);
+      activeEndTimes.push(endsAt);
 
       await this.prisma.$transaction(async (tx) => {
-        const newLot = await tx.lot.create({
+        const created = await tx.lot.create({
           data: {
             auctioneerId: auctioneer.id,
             externalItemId: artwork.externalItemId,
@@ -422,87 +513,133 @@ export class LotsService {
           },
         });
 
-        // Sorteia de 1 a 3 lances iniciais reais para movimentar o lote recém-aberto
         if (bidders.length >= 2) {
-          const numInitialBids = crypto.randomInt(1, 4); // 1, 2 ou 3 lances
-          let prevHash = this.hashChain.getGenesisHash(newLot.id);
-          let currentBidAmount = startingPrice;
-          let lastBidderId: string | null = null;
-
-          for (let seq = 1; seq <= numInitialBids; seq++) {
-            // Escolhe um licitante diferente do líder anterior
-            const eligibleBidders = bidders.filter((b) => b.id !== lastBidderId);
-            const chosenBidder =
-              eligibleBidders[crypto.randomInt(0, eligibleBidders.length)];
-
-            // Garante que o licitante simulado tenha saldo suficiente (recarrega se necessário)
-            const freshBidder = await tx.user.findUnique({
-              where: { id: chosenBidder.id },
-            });
-            if (
-              freshBidder &&
-              freshBidder.totalBalance - freshBidder.committedBalance <
-                currentBidAmount + 500000
-            ) {
-              await tx.user.update({
-                where: { id: chosenBidder.id },
-                data: { totalBalance: { increment: 2000000 } }, // +R$ 20.000,00
-              });
-            }
-
-            const bidCreatedAt = new Date(
-              now.getTime() - (numInitialBids - seq + 1) * 45 * 1000,
-            );
-            const bidHash = this.hashChain.calculateBidHash({
-              lotId: newLot.id,
-              sequenceNumber: seq,
-              bidderId: chosenBidder.id,
-              amount: currentBidAmount,
-              createdAtIso: bidCreatedAt.toISOString(),
-              previousHash: prevHash,
-            });
-
-            await tx.bid.create({
-              data: {
-                lotId: newLot.id,
-                bidderId: chosenBidder.id,
-                sequenceNumber: seq,
-                amount: currentBidAmount,
-                createdAt: bidCreatedAt,
-                previousHash: prevHash,
-                bidHash,
-              },
-            });
-
-            prevHash = bidHash;
-            lastBidderId = chosenBidder.id;
-
-            if (seq < numInitialBids) {
-              currentBidAmount += minIncrement * crypto.randomInt(1, 3);
-            }
-          }
-
-          if (lastBidderId) {
-            await tx.lot.update({
-              where: { id: newLot.id },
-              data: {
-                currentPrice: currentBidAmount,
-                winnerId: lastBidderId,
-              },
-            });
-
-            await tx.user.update({
-              where: { id: lastBidderId },
-              data: {
-                committedBalance: { increment: currentBidAmount },
-              },
-            });
-          }
+          await this.createInitialBids(
+            tx,
+            created.id,
+            startingPrice,
+            minIncrement,
+            bidders,
+            now,
+          );
         }
+      });
+    }
 
-        this.logger.log(
-          `✨ Auto-Replenish: Lote "${newLot.title}" aberto automaticamente (${durationMinutes} min).`,
-        );
+    activeEndTimes.sort((a, b) => a.getTime() - b.getTime());
+
+    // 2. Cria os próximos lotes como AGENDADOS (SCHEDULED) sincronizados com o fim dos lotes AO VIVO
+    for (
+      let j = 0;
+      j < missingScheduled && cursor < shuffled.length;
+      j++, cursor++
+    ) {
+      const artwork = shuffled[cursor];
+      const auctioneer = auctioneers[crypto.randomInt(0, auctioneers.length)];
+      const startingPrice = prices[crypto.randomInt(0, prices.length)];
+      const minIncrement = increments[crypto.randomInt(0, increments.length)];
+
+      const targetIndex =
+        (scheduledLots.length + j) % Math.max(1, activeEndTimes.length);
+      const pairedEndTime = activeEndTimes[targetIndex];
+
+      const startsAt =
+        pairedEndTime && pairedEndTime.getTime() > now.getTime() + 30 * 1000
+          ? new Date(pairedEndTime.getTime())
+          : new Date(now.getTime() + (j + 1) * 14 * 60 * 1000);
+
+      const durationMin = crypto.randomInt(20, 45);
+      const endsAt = new Date(startsAt.getTime() + durationMin * 60 * 1000);
+
+      await this.prisma.lot.create({
+        data: {
+          auctioneerId: auctioneer.id,
+          externalItemId: artwork.externalItemId,
+          title: artwork.title,
+          description: artwork.description,
+          imageUrl: artwork.imageUrl,
+          attributesJson: artwork.attributesJson,
+          startingPrice,
+          minIncrement,
+          currentPrice: 0,
+          startsAt,
+          endsAt,
+          status: LotStatus.SCHEDULED,
+        },
+      });
+    }
+  }
+
+  private async createInitialBids(
+    tx: any,
+    lotId: string,
+    startingPrice: number,
+    minIncrement: number,
+    bidders: Array<{ id: string }>,
+    now: Date,
+  ) {
+    const numBids = crypto.randomInt(1, 4);
+    let prevHash = this.hashChain.getGenesisHash(lotId);
+    let amount = startingPrice;
+    let lastBidderId: string | null = null;
+
+    for (let seq = 1; seq <= numBids; seq++) {
+      const candidates = bidders.filter((b) => b.id !== lastBidderId);
+      const chosen = candidates[crypto.randomInt(0, candidates.length)];
+
+      const freshBidder = await tx.user.findUnique({
+        where: { id: chosen.id },
+      });
+      if (
+        freshBidder &&
+        freshBidder.totalBalance - freshBidder.committedBalance <
+          amount + 500000
+      ) {
+        await tx.user.update({
+          where: { id: chosen.id },
+          data: { totalBalance: { increment: 2000000 } },
+        });
+      }
+
+      const createdAt = new Date(now.getTime() - (numBids - seq + 1) * 35000);
+      const bidHash = this.hashChain.calculateBidHash({
+        lotId,
+        sequenceNumber: seq,
+        bidderId: chosen.id,
+        amount,
+        createdAtIso: createdAt.toISOString(),
+        previousHash: prevHash,
+      });
+
+      await tx.bid.create({
+        data: {
+          lotId,
+          bidderId: chosen.id,
+          sequenceNumber: seq,
+          amount,
+          createdAt,
+          previousHash: prevHash,
+          bidHash,
+        },
+      });
+
+      prevHash = bidHash;
+      lastBidderId = chosen.id;
+
+      if (seq < numBids) {
+        amount += minIncrement * crypto.randomInt(1, 3);
+      }
+    }
+
+    if (lastBidderId) {
+      await tx.lot.update({
+        where: { id: lotId },
+        data: { currentPrice: amount, winnerId: lastBidderId },
+      });
+
+      await tx.user.update({
+        where: { id: lastBidderId },
+        data: { committedBalance: { increment: amount } },
       });
     }
   }
