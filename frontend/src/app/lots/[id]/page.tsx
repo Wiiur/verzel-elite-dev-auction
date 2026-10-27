@@ -235,9 +235,9 @@ function LiveLotRoomContent({
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.src =
-                  'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=900&q=80';
+                  'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1000&q=80';
               }}
-              className="max-h-full max-w-full object-contain"
+              className="w-full h-80 object-cover rounded-2xl border border-slate-200 dark:border-slate-800"
             />
           </div>
 

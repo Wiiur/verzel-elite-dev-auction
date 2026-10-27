@@ -138,9 +138,9 @@ export default function ShowcasePage() {
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       e.currentTarget.src =
-                        'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=900&q=80';
+                        'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1000&q=80';
                     }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 left-3">
                     {lot.status === 'ACTIVE' && (

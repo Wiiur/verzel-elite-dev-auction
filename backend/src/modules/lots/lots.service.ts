@@ -27,6 +27,8 @@ export class LotsService {
   async getShowcaseLots(search?: string, statusFilter?: LotStatus) {
     await this.syncLotLifecycle();
 
+    
+
     return this.prisma.lot.findMany({
       where: {
         status: statusFilter
@@ -206,6 +208,18 @@ export class LotsService {
 
     try {
       const now = new Date();
+
+      for (const art of CURATED_ARTWORKS_POOL) {
+        await this.prisma.lot.updateMany({
+          where: {
+            externalItemId: art.externalItemId,
+            imageUrl: { not: art.imageUrl },
+          },
+          data: {
+            imageUrl: art.imageUrl,
+          },
+        });
+      }
 
       // 1. Ativa lotes agendados que atingiram o horário de início
       await this.prisma.lot.updateMany({
