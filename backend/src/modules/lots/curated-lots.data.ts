@@ -82,7 +82,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'American Gothic — Grant Wood',
     description: 'Retrato histórico da resiliência rural norte-americana do século XX.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg/1024px-Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/c/cc/Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg',
     attributesJson: {
       artist: 'Grant Wood',
       dateDisplay: '1930',
@@ -134,7 +134,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Girl with a Pearl Earring — Johannes Vermeer',
     description: 'Tronie barroco holandês célebre pelo domínio da luz e olhar enigmático.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/1024px-1665_Girl_with_a_Pearl_Earring.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/c/ce/Girl_with_a_Pearl_Earring.jpg',
     attributesJson: {
       artist: 'Johannes Vermeer',
       dateDisplay: '1665',
@@ -147,7 +147,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'The Kiss (Der Kuss) — Gustav Klimt',
     description: 'Composição simbolista da Fase Dourada vienense com aplicação de folhas de ouro.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg/1024px-The_Kiss_-_Gustav_Klimt_-_Google_Cultural_Institute.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/4/4d/Klimt_-_Der_Kuss.jpeghttps://upload.wikimedia.org/wikipedia/commons/4/4d/Klimt_-_Der_Kuss.jpeg',
     attributesJson: {
       artist: 'Gustav Klimt',
       dateDisplay: '1907–1908',
@@ -199,7 +199,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Las Meninas — Diego Velázquez',
     description: 'Complexa composição barroca espanhola retratando o ateliê real de Filipe IV.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Las_Meninas%2C_by_Diego_Vel%C3%A1zquez%2C_from_Prado_in_Google_Earth.jpg/1024px-Las_Meninas%2C_by_Diego_Vel%C3%A1zquez%2C_from_Prado_in_Google_Earth.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/9/99/Las_Meninas_01.jpg',
     attributesJson: {
       artist: 'Diego Velázquez',
       dateDisplay: '1656',
@@ -225,7 +225,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Composition VIII — Wassily Kandinsky',
     description: 'Obra abstrata geométrica fundamental do período da Bauhaus.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Vassily_Kandinsky%2C_1923_-_Composition_8%2C_oil_on_canvas%2C_140_x_201_cm%2C_Solomon_R._Guggenheim_Museum%2C_New_York.jpg/1280px-Vassily_Kandinsky%2C_1923_-_Composition_8%2C_oil_on_canvas%2C_140_x_201_cm%2C_Solomon_R._Guggenheim_Museum%2C_New_York.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/a/ad/Wassily_Kandinsky_Composition_VIII.jpg',
     attributesJson: {
       artist: 'Wassily Kandinsky',
       dateDisplay: '1923',
@@ -290,7 +290,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Café Terrace at Night — Vincent van Gogh',
     description: 'Cena noturna vibrante da Place du Forum em Arles sob o céu estrelado do sul da França.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Vincent_Willem_van_Gogh_-_Cafe_Terrace_at_Night_%28Yorck%29.jpg/1024px-Vincent_Willem_van_Gogh_-_Cafe_Terrace_at_Night_%28Yorck%29.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/2/21/Vincent_Willem_van_Gogh_-_Cafe_Terrace_at_Night_%28Yorck%29.jpg',
     attributesJson: {
       artist: 'Vincent van Gogh',
       dateDisplay: '1888',
@@ -316,7 +316,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Breezing Up (A Fair Wind) — Winslow Homer',
     description: 'Pintura marítima clássica norte-americana celebrando o otimismo e a navegação a vela.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Winslow_Homer_-_Breezing_Up_%28A_Fair_Wind%29_-_Google_Art_Project.jpg/1280px-Winslow_Homer_-_Breezing_Up_%28A_Fair_Wind%29_-_Google_Art_Project.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/9/96/Winslow_Homer_-_Breezing_Up_%28A_Fair_Wind%29_-_Google_Art_Project.jpg',
     attributesJson: {
       artist: 'Winslow Homer',
       dateDisplay: '1873–1876',
