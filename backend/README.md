@@ -112,3 +112,33 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+## 🤖 Uso Estratégico de IA no Desenvolvimento (AI-Assisted Engineering)
+
+Durante o desenvolvimento da **Verzel Fine Art Auctions**, a Inteligência Artificial (LLM) foi utilizada como **Arquiteta Copiloto, Pair Programmer e Engenheira de QA**, acelerando a implementação de padrões complexos de sistemas distribuídos, segurança criptográfica e resolução de gargalos de infraestrutura. Toda a tomada de decisão arquitetural, revisão de código e validação das regras de negócio foi conduzida de forma crítica e iterativa.
+
+### Onde e como a IA foi aplicada na prática:
+
+1. **Modelagem da Auditoria Criptográfica Imutável (HMAC-SHA256 Hash Chain):**
+   * **O Desafio:** Garantir que qualquer adulteração direta no banco de dados PostgreSQL (`UPDATE`, `DELETE` ou `INSERT` manual na tabela de lances) fosse matematicamente detectada pela auditoria pública.
+   * **Aplicação da IA:** Co-design do algoritmo de encadeamento de blocos no `HashChainService` (`GenesisHash` + `sequenceNumber` + `previousHash`) assinado com chave simétrica secreta (`HMAC-SHA256`), impedindo que até mesmo um invasor com acesso ao banco recalcule os hashes sem a chave da aplicação.
+
+2. **Controle de Concorrência e Transações Atômicas no Banco de Dados:**
+   * **O Desafio:** Prevenir condições de corrida (*Race Conditions*) em lances simultâneos de múltiplos licitantes na mesma fração de segundo e garantir consistência financeira absoluta nas carteiras.
+   * **Aplicação da IA:** Estruturação das transações interativas no Prisma ORM combinadas com **Bloqueio Pessimista a nível de linha (`SELECT ... FOR UPDATE`)** no PostgreSQL, garantindo que a validação de saldo disponível, o estorno do `committedBalance` do líder anterior, o bloqueio do novo líder e o gatilho de *Anti-Sniping* (+2 min) ocorram de forma 100% atômica.
+
+3. **Engenharia da Esteira Autônoma de Leilões (Auto-Replenish Pipeline):**
+   * **O Desafio:** Manter o ambiente de produção sempre vivo e dinâmico para os avaliadores sem intervenção manual e sem repetir obras recentemente leiloadas.
+   * **Aplicação da IA:** Desenvolvimento do motor reativo em `@nestjs/schedule` (`LotsService`) aliado a um pool curado de 24 obras-primas (`curated-lots.data.ts`). Utilização do algoritmo de embaralhamento *Fisher-Yates* com entropia criptográfica (`crypto.randomInt`) para manter sempre 3 lotes `ACTIVE` e 3 lotes `SCHEDULED` sincronizados com o encerramento dos lotes atuais, incluindo geração automática de lances iniciais válidos e recarga de liquidez dos licitantes simulados.
+
+4. **Troubleshooting Avançado de Tooling Moderno (TypeScript 6, Jest 30 e Next.js 16.4):**
+   * **O Desafio:** Resolver incompatibilidades de módulos ESM do NestJS 12 no Jest 30 com TypeScript 6 e adequar rotas dinâmicas ao novo modelo de *Partial Prerendering (Cache Components)* do Next.js 16.4.
+   * **Aplicação da IA:** Diagnóstico de pilha de execução para migrar o *transpiler* de testes de `ts-jest` para **`@swc/jest`** (eliminando erros de módulos ESM em `node_modules` e reduzindo o tempo de execução das suítes unitárias) e refatoração das páginas dinâmicas (`/lots/[id]`, `/audit/[lotId]`, `/receipts/[id]`) utilizando fronteiras assíncronas com `<Suspense>`.
+
+5. **Resiliência de Integração Externa e Contorno de Bloqueios CORP/Cloudflare:**
+   * **O Desafio:** A API pública do *Art Institute of Chicago* apresentava latência variável e seus servidores de imagem IIIF bloqueavam carregamento direto no navegador por políticas `NotSameOrigin (403 Forbidden)`.
+   * **Aplicação da IA:** Implementação de *AbortController* com timeout de 4.5s, cache em memória e estratégia híbrida de *Fallback Catalog* no `CatalogApiService`, priorizando imagens de alta disponibilidade e garantindo que nenhuma vitrine ou busca do leiloeiro quebre em produção.
+
+6. **Qualidade de Software (Testes Unitários e Documentação Técnica):**
+   * **Aplicação da IA:** Geração de cenários de borda (*edge cases*) nas suítes de teste (`bidding.service.spec.ts` e `hash-chain.service.spec.ts`) para simular fraudes no banco de dados, autolances e falta de saldo livre, além da estruturação da documentação arquitetural e pipeline de CI no GitHub Actions.
