@@ -1,0 +1,81 @@
+name: CI — Backend Unit Tests & Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Run Unit Tests (Jest + SWC)
+        working-directory: ./backend
+        env:
+          AUDIT_HMAC_SECRET: 'ci-test-hmac-secret'
+          JWT_SECRET: 'ci-test-jwt-secret'
+        run: npm test
+
+      - name: Verify Production Build
+        working-directory: ./backend
+        run: npm run buildname: CI — Backend Unit Tests & Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Run Unit Tests (Jest + SWC)
+        working-directory: ./backend
+        env:
+          AUDIT_HMAC_SECRET: 'ci-test-hmac-secret'
+          JWT_SECRET: 'ci-test-jwt-secret'
+        run: npm test
+
+      - name: Verify Production Build
+        working-directory: ./backend
+        run: npm run build

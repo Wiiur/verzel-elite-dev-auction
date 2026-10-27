@@ -6,8 +6,8 @@ Plataforma full-stack de leilões de obras de arte em tempo real desenvolvida pa
 
 ## 🔗 Links Oficiais de Produção
 
-* **Aplicação Web (Front-End — Vercel):** `[INSIRA_AQUI_O_LINK_DA_VERCEL]`
-* **API & WebSockets (Back-End — Render):** `[INSIRA_AQUI_O_LINK_DO_RENDER]/api`
+* **Aplicação Web (Front-End — Vercel):** [https://verzel-elite-dev-auction.vercel.app](https://verzel-elite-dev-auction.vercel.app)
+* **API & WebSockets (Back-End — Render):** [https://verzel-elite-dev-auction.onrender.com/api/lots](https://verzel-elite-dev-auction.onrender.com/api/lots)
 * **Repositório GitHub:** [https://github.com/Wiiur/verzel-elite-dev-auction](https://github.com/Wiiur/verzel-elite-dev-auction)
 
 ---
