@@ -121,7 +121,7 @@ export const CURATED_ARTWORKS_POOL: CuratedArtworkSeed[] = [
     title: 'Wanderer above the Sea of Fog — Caspar David Friedrich',
     description: 'Obra emblemática do Romantismo alemão contemplando a imensidão das montanhas.',
     imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg/1024px-Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/d/d5/Caspar_David_Friedrich_Wanderer_above_the_Sea_of_Fog.jpg',
     attributesJson: {
       artist: 'Caspar David Friedrich',
       dateDisplay: '1818',
